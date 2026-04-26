@@ -565,7 +565,7 @@ function buildDbFromSheet(rows){
     const prices = {};
     if(medium==='yourmeister'||medium==='jisha'||medium==='chirashi'){
       for(let i=1;i<=10;i++) prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
-      for(let i=1;i<=4;i++)  prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
+      for(let i=1;i<=10;i++) prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
       prices['osouji_5plus']=Number(row['お掃除単価5plus']||0);
     } else {
       for(let i=1;i<=4;i++){
@@ -852,10 +852,12 @@ function calc(){
   let breakdown=[],acAmt=0,optAmt=0;
 
   if(isYM||platform==='chirashi'){
-    // YM・チラシ：通常＋お掃除の台数別合計
     const p=getPricesForDate(platform,dateStr);
     if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`通常エアコン ${normalCount}台`,amount:a});acAmt+=a;}
-    if(osoujiCount>0){const a=p[`osouji_${osoujiCount}`]??0;breakdown.push({label:`お掃除機能付き ${osoujiCount}台`,amount:a});acAmt+=a;}
+    if(osoujiCount>0){
+      const a=p[`osouji_${osoujiCount}`]??0;
+      breakdown.push({label:`お掃除機能付き ${osoujiCount}台`,amount:a});acAmt+=a;
+    }
   } else if(ptype==='table'){
     // 自社：基本料金のみ（台数別合計）
     const p=getPricesForDate(platform,dateStr);
