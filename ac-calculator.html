@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>料金計算ツール</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+  :root {
+    --pink:#f472b6; --pink-light:#fce7f3; --pink-pale:#fdf2f8; --pink-dark:#db2777;
+    --text:#1f2937; --text-muted:#6b7280; --border:#f9a8d4;
+    --shadow:0 4px 24px rgba(244,114,182,0.13); --radius:18px; --radius-sm:10px;
+    --ym:#7c3aed; --ym-pale:#f5f3ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Noto Sans JP',sans-serif;background:linear-gradient(160deg,#fdf2f8 0%,#f0fdf4 60%,#fdf2f8 100%);min-height:100vh;color:var(--text);-webkit-font-smoothing:antialiased;}
+
+  .header{background:linear-gradient(135deg,var(--pink-dark) 0%,#f472b6 100%);padding:18px 20px 14px;text-align:center;box-shadow:0 4px 20px rgba(219,39,119,.3);position:sticky;top:0;z-index:100;}
+  .header-store{color:rgba(255,255,255,.9);font-size:11px;margin-bottom:2px;}
+  .header h1{color:white;font-size:17px;font-weight:700;letter-spacing:.05em;}
+
+  .tab-bar{display:flex;background:white;border-bottom:2px solid var(--pink-light);position:sticky;top:63px;z-index:99;}
+  .tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;border:none;border-bottom:3px solid transparent;background:none;font-family:'Noto Sans JP',sans-serif;transition:all .2s;}
+  .tab.active{color:var(--pink-dark);border-bottom-color:var(--pink-dark);}
+
+  .content{padding:14px;max-width:480px;margin:0 auto;}
+
+  .card{background:white;border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);border:1px solid var(--pink-light);}
+  .card.ym-card{border-color:#c4b5fd;box-shadow:0 4px 24px rgba(124,58,237,.12);}
+  .card-title{font-size:13px;font-weight:700;color:var(--pink-dark);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+  .card-title::before{content:'';width:4px;height:16px;background:var(--pink);border-radius:2px;display:block;}
+  .card-title.ym-title{color:var(--ym);}
+  .card-title.ym-title::before{background:var(--ym);}
+
+  select{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--pink-pale);appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23db2777' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
+  select:focus{outline:none;border-color:var(--pink-dark);}
+  select.ym-select{border-color:#c4b5fd;background-color:var(--ym-pale);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237c3aed' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");}
+  select.ym-select:focus{border-color:var(--ym);}
+
+  /* カウンター */
+  .counter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .counter-item{background:var(--pink-pale);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;}
+  .counter-label{font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;}
+  .counter-label span{display:block;font-size:10px;color:#ec4899;margin-top:2px;}
+  .counter-control{display:flex;align-items:center;justify-content:space-between;}
+  .counter-btn{width:34px;height:34px;border-radius:50%;border:2px solid var(--pink);background:white;color:var(--pink-dark);font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;line-height:1;}
+  .counter-btn:active{background:var(--pink-light);transform:scale(.9);}
+  .counter-val{font-size:24px;font-weight:900;color:var(--text);min-width:32px;text-align:center;}
+  .unit-price-hint{text-align:center;font-size:11px;color:var(--pink-dark);margin-top:8px;font-weight:600;background:var(--pink-pale);border-radius:6px;padding:4px 8px;}
+
+  /* オプション */
+  .option-list{display:flex;flex-direction:column;gap:8px;}
+  .option-row{display:flex;align-items:center;padding:10px;background:var(--pink-pale);border-radius:var(--radius-sm);border:1.5px solid transparent;transition:all .15s;}
+  .option-row.selected{border-color:var(--pink);background:#fce7f3;}
+  .option-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;color:white;background:white;flex-shrink:0;transition:all .15s;margin-right:8px;font-size:12px;}
+  .option-row.selected .option-check{background:var(--pink-dark);border-color:var(--pink-dark);}
+  .option-info{flex:1;cursor:pointer;min-width:0;}
+  .option-name{font-size:13px;font-weight:600;line-height:1.3;}
+  .option-unit-price{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .opt-qty-ctrl{display:flex;align-items:center;gap:4px;margin-left:6px;flex-shrink:0;}
+  .opt-qty-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--pink);background:white;color:var(--pink-dark);font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;}
+  .opt-qty-btn:active{background:var(--pink-light);transform:scale(.9);}
+  .opt-qty-val{font-size:16px;font-weight:900;min-width:18px;text-align:center;}
+  .opt-total-price{font-size:13px;font-weight:700;color:var(--pink-dark);min-width:68px;text-align:right;margin-left:6px;}
+
+  /* その他フリー入力 */
+  .free-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .free-input-item{background:var(--pink-pale);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;}
+  .free-input-label{font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;}
+  .free-input-label span{display:block;font-size:10px;color:#ec4899;margin-top:2px;}
+  .free-amount-input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:white;text-align:right;}
+  .free-amount-input:focus{outline:none;border-color:var(--pink-dark);}
+  .free-hint{font-size:10px;color:var(--text-muted);margin-top:4px;text-align:right;}
+
+  /* YM専用 */
+  .ym-fields{display:flex;flex-direction:column;gap:10px;}
+  .ym-field-row{display:flex;flex-direction:column;gap:5px;}
+  .ym-field-label{font-size:12px;font-weight:700;color:var(--ym);}
+  .ym-field-note{font-size:10px;color:var(--text-muted);margin-top:-2px;}
+
+  /* 注文日 */
+  .date-row{display:flex;align-items:center;gap:10px;}
+  .date-input{flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--pink-pale);}
+  .date-input:focus{outline:none;border-color:var(--pink-dark);}
+  .date-badge{font-size:11px;font-weight:700;color:white;background:var(--pink-dark);padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+  .date-badge.active{background:#059669;}
+
+  /* 合計 */
+  .total-card{background:linear-gradient(135deg,var(--pink-dark) 0%,#f472b6 100%);border-radius:var(--radius);padding:20px;margin-bottom:12px;box-shadow:0 8px 32px rgba(219,39,119,.35);color:white;}
+  .total-label{font-size:13px;font-weight:500;opacity:.9;margin-bottom:4px;}
+  .total-amount{font-size:44px;font-weight:900;letter-spacing:-1px;line-height:1;}
+  .total-amount small{font-size:18px;font-weight:600;margin-left:4px;}
+  .total-breakdown{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.3);display:flex;flex-direction:column;gap:5px;}
+  .bd-row{display:flex;justify-content:space-between;font-size:13px;opacity:.9;}
+  .bd-row.fee{font-size:12px;opacity:.85;}
+  .bd-row.extra{font-size:12px;opacity:.8;}
+  .bd-row.discount{font-size:12px;}
+  .bd-row.total-line{font-weight:700;font-size:15px;opacity:1;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);margin-top:4px;}
+  .bd-sep{border-top:1px dashed rgba(255,255,255,.25);margin:3px 0;}
+  .green-txt{color:#86efac;}
+
+  .reset-btn{width:100%;padding:14px;border-radius:var(--radius-sm);border:2px solid var(--pink);background:white;color:var(--pink-dark);font-size:15px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .15s;margin-bottom:30px;}
+  .reset-btn:active{background:var(--pink-light);}
+
+  /* 管理画面 */
+  .calc-section.hidden{display:none;}
+  .admin-section{display:none;}
+  .admin-section.active{display:block;}
+
+  /* パスワード */
+  .pw-overlay{position:fixed;inset:0;background:linear-gradient(135deg,var(--pink-dark),#f472b6);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;}
+  .pw-overlay.hidden{display:none;}
+  .pw-box{background:white;border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+  .pw-box h2{font-size:18px;font-weight:700;color:var(--pink-dark);margin-bottom:6px;}
+  .pw-box p{font-size:12px;color:var(--text-muted);margin-bottom:20px;}
+  .pw-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px;}
+  .pw-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:white;transition:all .15s;}
+  .pw-dot.filled{background:var(--pink-dark);border-color:var(--pink-dark);}
+  .pw-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .pw-key{padding:16px;border-radius:12px;border:1.5px solid var(--pink-light);background:white;font-size:20px;font-weight:700;color:var(--text);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s;}
+  .pw-key:active{background:var(--pink-pale);transform:scale(.95);}
+  .pw-key.del{color:var(--pink-dark);font-size:16px;}
+  .pw-error{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;min-height:18px;}
+
+  .notice-box{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:var(--radius-sm);padding:12px;font-size:12px;color:#92400e;margin-bottom:12px;line-height:1.7;}
+  .admin-card{background:white;border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);border:1px solid #e5e7eb;}
+  .admin-title{font-size:14px;font-weight:700;color:#374151;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--pink-light);}
+  .platform-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .platform-tab{padding:6px 12px;border-radius:20px;border:1.5px solid #e5e7eb;background:white;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s;}
+  .platform-tab.active{background:var(--pink-dark);border-color:var(--pink-dark);color:white;}
+
+  /* 台数別テーブル */
+  .price-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .price-table th{background:var(--pink-pale);color:var(--pink-dark);font-weight:700;padding:8px 6px;text-align:center;border:1px solid var(--pink-light);font-size:12px;}
+  .price-table td{padding:5px 4px;border:1px solid #f3f4f6;text-align:center;background:white;}
+  .price-table td:first-child{font-weight:700;color:var(--text-muted);background:#fafafa;font-size:12px;white-space:nowrap;}
+  .price-input{width:100%;padding:6px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:#f9fafb;text-align:right;}
+  .price-input:focus{outline:none;border-color:var(--pink);}
+
+  /* カスタムオプション管理 */
+  .custom-opt-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f3f4f6;}
+  .custom-opt-num{font-size:12px;font-weight:700;color:var(--text-muted);width:22px;flex-shrink:0;text-align:center;}
+  .custom-opt-name{flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:#f9fafb;}
+  .custom-opt-name:focus{outline:none;border-color:var(--pink);}
+  .custom-opt-price{width:90px;padding:8px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:#f9fafb;text-align:right;flex-shrink:0;}
+  .custom-opt-price:focus{outline:none;border-color:var(--pink);}
+  .custom-opt-suffix{font-size:11px;color:var(--text-muted);flex-shrink:0;}
+
+  /* 固定オプション管理 */
+  .opt-admin-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f3f4f6;}
+  .opt-admin-label{font-size:13px;font-weight:600;flex:1;line-height:1.4;}
+  .opt-admin-input{width:90px;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:#f9fafb;text-align:right;flex-shrink:0;}
+  .opt-admin-input:focus{outline:none;border-color:var(--pink);}
+
+  /* 店舗コードログイン */
+  .store-overlay{position:fixed;inset:0;background:linear-gradient(135deg,var(--pink-dark),#f472b6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+  .store-overlay.hidden{display:none;}
+  .store-box{background:white;border-radius:24px;padding:32px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+  .store-box h2{font-size:20px;font-weight:700;color:var(--pink-dark);margin-bottom:6px;}
+  .store-box p{font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.6;}
+  .store-input{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-family:'Noto Sans JP',sans-serif;text-align:center;letter-spacing:4px;color:var(--text);background:var(--pink-pale);margin-bottom:12px;}
+  .store-input:focus{outline:none;border-color:var(--pink-dark);}
+  .store-login-btn{width:100%;padding:14px;border-radius:var(--radius-sm);border:none;background:linear-gradient(135deg,var(--pink-dark),var(--pink));color:white;font-size:16px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(219,39,119,.3);transition:all .15s;}
+  .store-login-btn:active{opacity:.9;transform:scale(.98);}
+  .store-error{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;min-height:18px;}
+  .store-loading{color:var(--pink-dark);font-size:13px;margin-top:10px;display:none;}
+  .store-badge{display:inline-block;background:var(--pink-pale);border:1.5px solid var(--border);border-radius:20px;padding:6px 16px;font-size:13px;font-weight:700;color:var(--pink-dark);margin-bottom:16px;}
+  .setting-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .setting-label{font-size:13px;font-weight:700;color:#374151;}
+  .setting-input{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:#f9fafb;}
+  .setting-input:focus{outline:none;border-color:var(--pink);}
+
+  /* 価格履歴 */
+  .history-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+  .history-item{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f9fafb;border-radius:var(--radius-sm);border:1px solid #e5e7eb;}
+  .history-date{font-size:12px;font-weight:700;color:var(--pink-dark);width:90px;flex-shrink:0;}
+  .history-desc{font-size:12px;color:var(--text-muted);flex:1;}
+  .history-del{width:28px;height:28px;border-radius:50%;border:1.5px solid #fca5a5;background:white;color:#ef4444;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .add-history-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+  .add-date-input{flex:1;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:white;}
+  .add-date-input:focus{outline:none;border-color:var(--pink);}
+  .add-history-btn{padding:9px 14px;border-radius:8px;border:none;background:var(--pink-dark);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;white-space:nowrap;}
+
+  .ym-notice-admin{font-size:11px;color:var(--ym);padding:7px 10px;background:var(--ym-pale);border-radius:7px;margin-bottom:10px;border:1px solid #c4b5fd;}
+  .pw-change-row{display:flex;gap:8px;align-items:center;}
+  .pw-change-input{flex:1;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:20px;letter-spacing:6px;text-align:center;font-family:'Noto Sans JP',sans-serif;}
+  .pw-change-input:focus{outline:none;border-color:var(--pink);}
+
+  .save-btn{width:100%;padding:14px;border-radius:var(--radius-sm);border:none;background:linear-gradient(135deg,var(--pink-dark),var(--pink));color:white;font-size:15px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .15s;margin-top:6px;box-shadow:0 4px 16px rgba(219,39,119,.3);}
+  .save-btn:active{opacity:.9;transform:scale(.98);}
+  .save-btn.logout-btn{background:linear-gradient(135deg,#6b7280,#9ca3af);}
+  .saved-msg{text-align:center;color:#059669;font-size:13px;font-weight:700;padding:8px;display:none;}
+  .saved-msg.show{display:block;}
+  .admin-section-sub{font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- 店舗コードログイン画面 -->
+<div class="store-overlay" id="storeOverlay">
+  <div class="store-box">
+    <h2>🌸 料金計算ツール</h2>
+    <p>店舗を選択してください</p>
+    <div id="storeSelectArea">
+      <div class="store-loading" id="storeLoadingList" style="display:block;">🔄 店舗一覧を読み込み中...</div>
+      <select id="storeSelect" class="store-input" style="display:none;letter-spacing:0;font-size:15px;text-align:left;">
+        <option value="">-- 店舗を選択してください --</option>
+      </select>
+    </div>
+    <button class="store-login-btn" onclick="storeLogin()" id="storeLoginBtn" style="margin-top:12px;">ログイン</button>
+    <div class="store-loading" id="storeLoading">🔄 料金データを読み込み中...</div>
+    <div class="store-error" id="storeError"></div>
+  </div>
+</div>
+
+<!-- パスワードオーバーレイ -->
+<div class="pw-overlay hidden" id="pwOverlay">
+  <div class="pw-box">
+    <h2>🔐 管理者ログイン</h2>
+    <p>4桁のパスワードを入力してください</p>
+    <div class="pw-dots" id="pwDots">
+      <div class="pw-dot" id="d0"></div><div class="pw-dot" id="d1"></div>
+      <div class="pw-dot" id="d2"></div><div class="pw-dot" id="d3"></div>
+    </div>
+    <div class="pw-keypad">
+      <button class="pw-key" onclick="pwInput('1')">1</button>
+      <button class="pw-key" onclick="pwInput('2')">2</button>
+      <button class="pw-key" onclick="pwInput('3')">3</button>
+      <button class="pw-key" onclick="pwInput('4')">4</button>
+      <button class="pw-key" onclick="pwInput('5')">5</button>
+      <button class="pw-key" onclick="pwInput('6')">6</button>
+      <button class="pw-key" onclick="pwInput('7')">7</button>
+      <button class="pw-key" onclick="pwInput('8')">8</button>
+      <button class="pw-key" onclick="pwInput('9')">9</button>
+      <button class="pw-key" onclick="pwInput('0')" style="grid-column:2;">0</button>
+      <button class="pw-key del" onclick="pwDel()">⌫</button>
+    </div>
+    <div class="pw-error" id="pwError"></div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-store" id="headerStore"></div>
+  <h1>料金計算ツール</h1>
+  <div id="headerStoreBadge" style="margin-top:4px;display:none;">
+    <span style="background:rgba(255,255,255,.25);border-radius:20px;padding:3px 12px;font-size:11px;color:white;font-weight:600;" id="headerStoreLabel"></span>
+    <button onclick="storeLogout()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;margin-left:6px;font-family:'Noto Sans JP',sans-serif;">切替</button>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('calc')">💰 料金計算</button>
+  <button class="tab" onclick="switchTab('admin')">⚙️ 管理</button>
+</div>
+
+<div class="content">
+
+  <!-- ===== 計算画面 ===== -->
+  <div id="calcSection" class="calc-section">
+
+    <div class="card">
+      <div class="card-title">注文日</div>
+      <div class="date-row">
+        <input type="date" class="date-input" id="orderDate" onchange="onDateChange()">
+        <div class="date-badge" id="dateBadge">日付を選択</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">媒体・受注先</div>
+      <select id="platform" onchange="onPlatformChange()">
+        <option value="yourmeister">ユアマイスター</option>
+        <option value="kurashi">くらしのマーケット</option>
+        <option value="ouchi">おうちにプロ</option>
+        <option value="jisha">自社（直接・HPやLINE等）</option>
+        <option value="chirashi">チラシ</option>
+        <option value="other">その他（直接入力）</option>
+      </select>
+    </div>
+
+    <!-- 台数（自社）：基本料金カウンター1つ -->
+    <div class="card" id="counterCard">
+      <div class="card-title">台数を選ぶ</div>
+      <div style="max-width:200px;margin:0 auto;">
+        <div class="counter-item">
+          <div class="counter-label">基本料金<span>（家庭用壁掛けエアコン）</span></div>
+          <div class="counter-control">
+            <button class="counter-btn" onclick="changeAC('normal',-1)">－</button>
+            <div class="counter-val" id="normalVal">0</div>
+            <button class="counter-btn" onclick="changeAC('normal',1)">＋</button>
+          </div>
+          <div class="unit-price-hint" id="normalHint" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 台数（YM）：通常＋お掃除機能付き2カウンター -->
+    <div class="card" id="counterCardYM" style="display:none;">
+      <div class="card-title">台数を選ぶ</div>
+      <div class="counter-grid">
+        <div class="counter-item">
+          <div class="counter-label">通常タイプ<span>（壁掛け等）</span></div>
+          <div class="counter-control">
+            <button class="counter-btn" onclick="changeAC('normal',-1)">－</button>
+            <div class="counter-val" id="normalValYM">0</div>
+            <button class="counter-btn" onclick="changeAC('normal',1)">＋</button>
+          </div>
+          <div class="unit-price-hint" id="normalHintYM" style="display:none;"></div>
+        </div>
+        <div class="counter-item">
+          <div class="counter-label">お掃除機能付き<span>（自動掃除）</span></div>
+          <div class="counter-control">
+            <button class="counter-btn" onclick="changeAC('osouji',-1)">－</button>
+            <div class="counter-val" id="osoujiValYM">0</div>
+            <button class="counter-btn" onclick="changeAC('osouji',1)">＋</button>
+          </div>
+          <div class="unit-price-hint" id="osoujiHintYM" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 台数（くらし・おうち）：1〜4台個別＋5台以降単価、基本料金のみ -->
+    <div class="card" id="unitCard" style="display:none;">
+      <div class="card-title">台数を選ぶ</div>
+      <div style="max-width:200px;margin:0 auto;">
+        <div class="counter-item">
+          <div class="counter-label">基本料金<span>（家庭用壁掛けエアコン）</span></div>
+          <div class="counter-control">
+            <button class="counter-btn" onclick="changeAC('normal',-1)">－</button>
+            <div class="counter-val" id="normalVal2">0</div>
+            <button class="counter-btn" onclick="changeAC('normal',1)">＋</button>
+          </div>
+          <div class="unit-price-hint" id="normalHint2" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- その他：直接入力 -->
+    <div class="card" id="freeCard" style="display:none;">
+      <div class="card-title">作業料金を入力</div>
+      <div class="free-input-grid">
+        <div class="free-input-item">
+          <div class="free-input-label">通常エアコン<span>合計金額</span></div>
+          <input type="number" class="free-amount-input" id="freeNormal" placeholder="0" oninput="calc()">
+          <div class="free-hint">円（税込）</div>
+        </div>
+        <div class="free-input-item">
+          <div class="free-input-label">お掃除機能付き<span>合計金額</span></div>
+          <input type="number" class="free-amount-input" id="freeOsouji" placeholder="0" oninput="calc()">
+          <div class="free-hint">円（税込）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- オプション（固定） -->
+    <div class="card">
+      <div class="card-title">オプション</div>
+      <div class="option-list" id="optionList"></div>
+    </div>
+
+    <!-- カスタムオプション（管理者設定済みのもののみ表示） -->
+    <div class="card" id="customOptCard" style="display:none;">
+      <div class="card-title">追加オプション</div>
+      <div class="option-list" id="customOptionList"></div>
+    </div>
+
+    <!-- ユアマイスター専用 -->
+    <div class="card ym-card" id="ymCard" style="display:none;">
+      <div class="card-title ym-title">🟣 ユアマイスター専用</div>
+      <div class="ym-fields">
+        <div class="ym-field-row">
+          <div class="ym-field-label">クーポン</div>
+          <div class="ym-field-note">※クーポン適用後の金額にサービス料15%が計算されます</div>
+          <select class="ym-select" id="ymCoupon" onchange="calc()">
+            <option value="flat:0">なし</option>
+            <optgroup label="── 定額クーポン ──">
+              <option value="flat:300">300円引き</option>
+              <option value="flat:500">500円引き</option>
+              <option value="flat:1000">1,000円引き</option>
+              <option value="flat:1500">1,500円引き</option>
+              <option value="flat:2000">2,000円引き</option>
+              <option value="flat:3000">3,000円引き</option>
+            </optgroup>
+            <optgroup label="── 割引クーポン ──">
+              <option value="pct:10">10%割引</option>
+              <option value="pct:15">15%割引</option>
+              <option value="pct:20">20%割引</option>
+              <option value="pct:25">25%割引</option>
+              <option value="pct:30">30%割引</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="ym-field-row">
+          <div class="ym-field-label">後払い決済手数料</div>
+          <div class="ym-field-note">※サービス料（15%）の対象外</div>
+          <select class="ym-select" id="ymKobarai" onchange="calc()">
+            <option value="0">なし</option>
+            <option value="370">あり（370円）</option>
+          </select>
+        </div>
+        <div class="ym-field-row">
+          <div class="ym-field-label">ご満足保証プラス</div>
+          <div class="ym-field-note">※サービス料（15%）の対象外</div>
+          <select class="ym-select" id="ymHosho" onchange="calc()">
+            <option value="0">なし</option>
+            <option value="980">980円</option>
+            <option value="1180">1,180円</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="total-card">
+      <div class="total-label">お客様へのご請求合計</div>
+      <div class="total-amount" id="totalAmount">¥0<small>円</small></div>
+      <div class="total-breakdown" id="breakdown"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">🔄 リセット</button>
+  </div>
+
+  <!-- ===== 管理画面 ===== -->
+  <div id="adminSection" class="admin-section">
+    <div class="notice-box"><strong>🔐 管理者専用画面</strong><br>オプション料金・パスワードの変更はここから行えます。</div>
+
+    <!-- 固定オプション -->
+    <div class="admin-card">
+      <div class="admin-title">🌿 固定オプション料金（全媒体共通）</div>
+      <div id="optionEditor"></div>
+      <button class="save-btn" onclick="saveFixedOptions()">💾 保存する</button>
+      <div class="saved-msg" id="savedMsgOpt">✅ 保存しました！</div>
+    </div>
+
+    <!-- カスタムオプション10項目 -->
+    <div class="admin-card">
+      <div class="admin-title">✏️ 自由オプション（最大10項目）</div>
+      <p class="admin-section-sub">名前と金額を入力すると、料金計算画面に「追加オプション」として表示されます。未入力の項目は非表示になります。</p>
+      <div id="customOptEditor"></div>
+      <button class="save-btn" onclick="saveCustomOptions()">💾 保存する</button>
+      <div class="saved-msg" id="savedMsgCustom">✅ 保存しました！</div>
+    </div>
+
+    <!-- パスワード変更 -->
+    <div class="admin-card">
+      <div class="admin-title">🔑 パスワード変更</div>
+      <div class="pw-change-row">
+        <input type="tel" class="pw-change-input" id="newPwInput" maxlength="4" placeholder="新4桁">
+        <button class="save-btn" style="margin-top:0;flex:0 0 auto;width:auto;padding:12px 20px;" onclick="changePassword()">変更</button>
+      </div>
+      <div class="saved-msg" id="savedMsgPw">✅ パスワードを変更しました！</div>
+    </div>
+
+    <button class="save-btn logout-btn" onclick="adminLogout()">🔓 ログアウト</button>
+    <div style="height:30px;"></div>
+  </div>
+
+</div>
+
+<script>
+// ===== Googleスプレッドシート API =====
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzF1f5JY0Np8c2iMYShssIapbwGx_WtBd7mm-wZueeoCUQov3-fnw7LKvZ8jD8JIln8/exec';
+
+// ===== 店舗コードログイン =====
+let currentStoreCode = '';
+let currentStoreName = '';
+let sheetPriceData = [];
+
+// 起動時に店舗一覧を取得してプルダウンに表示
+function loadStoreList(){
+  const url = `${SHEET_API_URL}`;
+  fetch(url)
+    .then(r=>r.json())
+    .then(json=>{
+      document.getElementById('storeLoadingList').style.display='none';
+      if(json.status==='ok' && json.data && json.data.length>0){
+        // 店舗コード＋店舗名のユニーク一覧を作成
+        const storeMap = new Map();
+        json.data.forEach(row=>{
+          const code = String(row['店舗コード']||'').trim();
+          const name = String(row['店舗名']||'').trim();
+          if(code && name && !storeMap.has(code)){
+            storeMap.set(code, name);
+          }
+        });
+        const sel = document.getElementById('storeSelect');
+        storeMap.forEach((name, code)=>{
+          const opt = document.createElement('option');
+          opt.value = code;
+          opt.textContent = name;
+          sel.appendChild(opt);
+        });
+        sel.style.display='block';
+      } else {
+        document.getElementById('storeError').textContent='店舗一覧の取得に失敗しました。';
+      }
+    })
+    .catch(err=>{
+      document.getElementById('storeLoadingList').style.display='none';
+      document.getElementById('storeError').textContent='通信エラーが発生しました。再度お試しください。';
+      console.error(err);
+    });
+}
+
+function storeLogin(){
+  const sel = document.getElementById('storeSelect');
+  const code = sel.value;
+  const name = sel.options[sel.selectedIndex]?.textContent || code;
+  if(!code){
+    document.getElementById('storeError').textContent='店舗を選択してください';
+    return;
+  }
+  document.getElementById('storeError').textContent='';
+  document.getElementById('storeLoading').style.display='block';
+  document.getElementById('storeLoginBtn').disabled=true;
+
+  const url = `${SHEET_API_URL}?store=${encodeURIComponent(code)}`;
+  fetch(url)
+    .then(r=>r.json())
+    .then(json=>{
+      document.getElementById('storeLoading').style.display='none';
+      document.getElementById('storeLoginBtn').disabled=false;
+      if(json.status==='ok' && json.data && json.data.length>0){
+        currentStoreCode = code;
+        currentStoreName = name;
+        sheetPriceData = json.data;
+        buildDbFromSheet(json.data);
+        document.getElementById('storeOverlay').classList.add('hidden');
+        document.getElementById('headerStoreBadge').style.display='block';
+        document.getElementById('headerStoreLabel').textContent=currentStoreName;
+        document.getElementById('headerStore').textContent='';
+        document.title=`${currentStoreName} 料金計算ツール`;
+        renderOptions();
+        calc();
+      } else {
+        document.getElementById('storeError').textContent='データの取得に失敗しました。';
+      }
+    })
+    .catch(err=>{
+      document.getElementById('storeLoading').style.display='none';
+      document.getElementById('storeLoginBtn').disabled=false;
+      document.getElementById('storeError').textContent='通信エラーが発生しました。再度お試しください。';
+      console.error(err);
+    });
+}
+
+function storeLogout(){
+  currentStoreCode=''; currentStoreName=''; sheetPriceData=[];
+  // プルダウンをリセット
+  document.getElementById('storeSelect').value='';
+  document.getElementById('storeError').textContent='';
+  document.getElementById('storeOverlay').classList.remove('hidden');
+  document.getElementById('headerStoreBadge').style.display='none';
+  resetAll();
+}
+
+// スプレッドシートデータ → dbオブジェクトに変換
+function buildDbFromSheet(rows){
+  const newDb = {};
+  rows.forEach(row=>{
+    const medium = String(row['媒体']||'').trim();
+    const startDate = String(row['有効開始日']||'').trim();
+    const endDate = String(row['有効終了日']||'').trim();
+    if(!medium || !PLATFORMS[medium]) return;
+
+    const prices = {};
+    if(medium==='yourmeister'||medium==='jisha'||medium==='chirashi'){
+      for(let i=1;i<=10;i++) prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
+      for(let i=1;i<=4;i++)  prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
+      prices['osouji_5plus']=Number(row['お掃除単価5plus']||0);
+    } else {
+      for(let i=1;i<=4;i++){
+        prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
+        prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
+      }
+      prices['normal_5plus']=Number(row['通常単価5plus']||0);
+      prices['osouji_5plus']=Number(row['お掃除単価5plus']||0);
+    }
+    prices['osouji_opt']=Number(row['お掃除オプション単価']||0);
+
+    if(!newDb[medium]) newDb[medium]={history:[]};
+    const existing=newDb[medium].history.findIndex(h=>h.date===startDate);
+    const entry={date:startDate,endDate:endDate,prices};
+    if(existing>=0) newDb[medium].history[existing]=entry;
+    else newDb[medium].history.push(entry);
+  });
+
+  // 固定オプション単価をスプレッドシートから反映（最初の行から取得）
+  const anyRow=rows[0];
+  if(anyRow){
+    const opts=loadFixedOpts();
+    const mapping = {
+      'nano':    'ナノソルコート単価',
+      'gaiki':   '室外機洗浄単価',
+      'dorain':  'ドレンホース単価',
+      'bouchuu': '防虫キャップ単価',
+      'set2':    '2点セット単価',
+      'set3':    '3点セット単価',
+    };
+    let changed = false;
+    opts.forEach(opt=>{
+      const col = mapping[opt.id];
+      if(col && anyRow[col] !== undefined && anyRow[col] !== ''){
+        opt.price = Number(anyRow[col]);
+        changed = true;
+      }
+      // お掃除オプション単価
+      if(opt.isOsoujiOpt && anyRow['お掃除オプション単価'] !== undefined){
+        opt.price = Number(anyRow['お掃除オプション単価']||6000);
+        changed = true;
+      }
+    });
+    if(changed) saveFixedOptsDB(opts);
+  }
+
+  db=Object.keys(newDb).length>0?newDb:loadPriceDB();
+}
+
+
+const PLATFORMS = {
+  yourmeister: { name:'ユアマイスター',            type:'table' },
+  kurashi:     { name:'くらしのマーケット',          type:'unit'  },
+  ouchi:       { name:'おうちにプロ',               type:'unit'  },
+  jisha:       { name:'自社（直接・HPやLINE等）',   type:'table' },
+  chirashi:    { name:'チラシ',                    type:'table' },
+  other:       { name:'その他',                   type:'free'  },
+};
+
+// デフォルト料金
+function makeTableDefaults(nArr, oArr) {
+  const o={};
+  nArr.forEach((v,i)=>o[`normal_${i+1}`]=v);
+  oArr.forEach((v,i)=>o[`osouji_${i+1}`]=v);
+  return o;
+}
+// unit方式：1台・2台・3台・4台の個別金額 + 5台以降の単価
+function makeUnitDefaults(n1,n2,n3,n4,n5p,o1,o2,o3,o4,o5p) {
+  return {normal_1:n1,normal_2:n2,normal_3:n3,normal_4:n4,normal_5plus:n5p,
+          osouji_1:o1,osouji_2:o2,osouji_3:o3,osouji_4:o4,osouji_5plus:o5p};
+}
+
+const ymN=[6000,12000,18000,24000,30000,36000,42000,48000,54000,60000];
+const ymO=[10000,20000,30000,40000,50000,60000,70000,80000,90000,100000];
+const jsN=[8000,15000,22000,28000,34000,40000,46000,52000,58000,64000];
+const jsO=[13000,25000,37000,48000,59000,70000,81000,92000,103000,114000];
+
+// くらし・おうちのデフォルト（スクショより：通常1-4台=5980、5台以上=5500/台、お掃除=6000/台）
+const DEFAULT_PRICES = {
+  jisha:       { history:[{date:'2020-01-01', prices:makeTableDefaults(jsN,jsO)}] },
+  yourmeister: { history:[{date:'2020-01-01', prices:makeTableDefaults(ymN,ymO)}] },
+  chirashi:    { history:[{date:'2020-01-01', prices:makeTableDefaults(ymN,ymO)}] },
+  kurashi:     { history:[{date:'2020-01-01', prices:makeUnitDefaults(5980,11960,17940,23920,5500,6000,12000,18000,24000,6000)}] },
+  ouchi:       { history:[{date:'2020-01-01', prices:makeUnitDefaults(5980,11960,17940,23920,5500,6000,12000,18000,24000,6000)}] },
+};
+
+const DEFAULT_FIXED_OPTIONS=[
+  // お掃除機能付きは自社・くらし・おうち用オプション（先頭固定）
+  {id:'osouji_opt', name:'お掃除機能付きエアコン', price:6000, popular:false, isOsoujiOpt:true},
+  {id:'nano',    name:'ナノソルコート',                            price:3000, popular:false},
+  {id:'gaiki',   name:'室外機洗浄',                                price:5000, popular:false},
+  {id:'dorain',  name:'ドレンホース洗浄',                          price:2500, popular:false},
+  {id:'bouchuu', name:'防虫キャップ',                              price:1000, popular:false},
+  {id:'set2',    name:'2点セット（ナノソルコート＋室外機）',         price:5000, popular:false},
+  {id:'set3',    name:'3点セット（ナノソルコート＋室外機＋ドレン）', price:7000, popular:true },
+];
+
+// カスタムオプション初期値（空10項目）
+const DEFAULT_CUSTOM_OPTIONS = Array.from({length:10},(_,i)=>({id:`custom_${i}`,name:'',price:0}));
+
+// ===== ストレージ =====
+function loadPriceDB(){try{const s=localStorage.getItem('acDB_v6');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_PRICES));}catch{return JSON.parse(JSON.stringify(DEFAULT_PRICES));}}
+function savePriceDB(d){localStorage.setItem('acDB_v6',JSON.stringify(d));}
+function loadFixedOpts(){try{const s=localStorage.getItem('acFOpts_v6');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_FIXED_OPTIONS));}catch{return JSON.parse(JSON.stringify(DEFAULT_FIXED_OPTIONS));}}
+function saveFixedOptsDB(o){localStorage.setItem('acFOpts_v6',JSON.stringify(o));}
+function loadCustomOpts(){try{const s=localStorage.getItem('acCOpts_v6');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_CUSTOM_OPTIONS));}catch{return JSON.parse(JSON.stringify(DEFAULT_CUSTOM_OPTIONS));}}
+function saveCustomOptsDB(o){localStorage.setItem('acCOpts_v6',JSON.stringify(o));}
+function loadPw(){return localStorage.getItem('acPw')||'1234';}
+function savePw(pw){localStorage.setItem('acPw',pw);}
+function loadStoreName(){return localStorage.getItem('acStore')||'';}
+function saveStoreNameDB(n){localStorage.setItem('acStore',n);}
+
+// ===== 状態 =====
+let db=loadPriceDB(), normalCount=0, osoujiCount=0;
+let optQty={}, customOptQty={}, adminLoggedIn=false, currentAdminPlatform='jisha';
+
+// ===== 日付 =====
+function getTodayStr(){return new Date().toISOString().slice(0,10);}
+function getSelectedDate(){return document.getElementById('orderDate').value||getTodayStr();}
+function getPricesForDate(platformKey,dateStr){
+  const pdb=db[platformKey];
+  if(!pdb||!pdb.history||!pdb.history.length) return DEFAULT_PRICES[platformKey]?.history[0]?.prices||{};
+  const sorted=[...pdb.history].sort((a,b)=>a.date.localeCompare(b.date));
+  const target=dateStr||getTodayStr();
+  let result=sorted[0].prices;
+  for(const h of sorted){if(h.date<=target)result=h.prices;else break;}
+  return result;
+}
+function onDateChange(){
+  const d=document.getElementById('orderDate').value;
+  const badge=document.getElementById('dateBadge');
+  if(d){const[y,m,day]=d.split('-');badge.textContent=`${y}/${m}/${day}の料金`;badge.className='date-badge active';}
+  else{badge.textContent='日付を選択';badge.className='date-badge';}
+  updateHints();calc();
+}
+
+// ===== エアコン台数 =====
+function changeAC(type,delta){
+  if(type==='normal'){normalCount=Math.max(0,Math.min(10,normalCount+delta));}
+  else{osoujiCount=Math.max(0,Math.min(10,osoujiCount+delta));}
+  syncCounterDisplays();updateHints();calc();
+}
+function syncCounterDisplays(){
+  // 自社・unit系（normalのみ）
+  ['normalVal','normalVal2'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=normalCount;});
+  // YM専用カウンター
+  const ymN=document.getElementById('normalValYM');if(ymN)ymN.textContent=normalCount;
+  const ymO=document.getElementById('osoujiValYM');if(ymO)ymO.textContent=osoujiCount;
+}
+
+function getUnitAmount(p, type, count) {
+  // type: 'normal' or 'osouji'
+  if (count <= 0) return 0;
+  if (count <= 4) {
+    return p[`${type}_${count}`] ?? 0;
+  } else {
+    // 4台分の料金 + 5台目以降は単価×(count-4)
+    const base4 = p[`${type}_4`] ?? 0;
+    const unitPrice = p[`${type}_5plus`] ?? 0;
+    return base4 + unitPrice * (count - 4);
+  }
+}
+
+function updateHints(){
+  const platform=document.getElementById('platform').value;
+  const ptype=PLATFORMS[platform]?.type;
+  const isYM=platform==='yourmeister';
+  const dateStr=getSelectedDate();
+
+  if(isYM||platform==='chirashi'){
+    // YM・チラシ：通常＋お掃除の2カウンター
+    const p=getPricesForDate(platform,dateStr);
+    const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
+    if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
+    if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 → ¥${(p[`osouji_${osoujiCount}`]??0).toLocaleString()}`;}else oh.style.display='none';}
+  } else if(ptype==='table'){
+    // 自社：normalのみ
+    const p=getPricesForDate(platform,dateStr);
+    const nh=document.getElementById('normalHint');
+    if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
+  } else if(ptype==='unit'){
+    const p=getPricesForDate(platform,dateStr);
+    const nh=document.getElementById('normalHint2');
+    if(nh){
+      if(normalCount>0){
+        const amt=getUnitAmount(p,'normal',normalCount);
+        const hint=normalCount<=4?`${normalCount}台 → ¥${amt.toLocaleString()}`:`4台 + ${normalCount-4}台×¥${(p.normal_5plus??0).toLocaleString()} = ¥${amt.toLocaleString()}`;
+        nh.style.display='block';nh.textContent=hint;
+      } else nh.style.display='none';
+    }
+  }
+}
+
+// ===== プラットフォーム変更 =====
+function onPlatformChange(){
+  const platform=document.getElementById('platform').value;
+  const ptype=PLATFORMS[platform]?.type;
+  const isYM=platform==='yourmeister';
+  const isChirashi=platform==='chirashi';
+  const needsDualCounter=isYM||isChirashi; // 通常＋お掃除2カウンター
+  // カウンター表示切替
+  document.getElementById('counterCard').style.display   = (ptype==='table'&&!needsDualCounter) ? 'block' : 'none';
+  document.getElementById('counterCardYM').style.display = needsDualCounter                     ? 'block' : 'none';
+  document.getElementById('unitCard').style.display      = ptype==='unit'                       ? 'block' : 'none';
+  document.getElementById('freeCard').style.display      = ptype==='free'                       ? 'block' : 'none';
+  document.getElementById('ymCard').style.display        = isYM                                 ? 'block' : 'none';
+  if(!needsDualCounter){ osoujiCount=0; syncCounterDisplays(); }
+  if(!isYM){document.getElementById('ymCoupon').value='flat:0';document.getElementById('ymKobarai').value='0';document.getElementById('ymHosho').value='0';}
+  updateHints();calc();
+}
+
+// ===== オプション描画 =====
+function changeOpt(id,delta,isCustom){
+  if(isCustom){customOptQty[id]=Math.max(0,(customOptQty[id]||0)+delta);}
+  else{optQty[id]=Math.max(0,(optQty[id]||0)+delta);}
+  renderOptions();calc();
+}
+function toggleOpt(id,isCustom){
+  if(isCustom){customOptQty[id]=(customOptQty[id]||0)>0?0:1;}
+  else{optQty[id]=(optQty[id]||0)>0?0:1;}
+  renderOptions();calc();
+}
+
+function renderOptions(){
+  const platform=document.getElementById('platform').value;
+  const isYM=platform==='yourmeister';
+  const hideOsoujiOpt=isYM||platform==='chirashi';
+  // 固定オプション：YM・チラシのときはosouji_optを非表示
+  const fixedOpts=loadFixedOpts().filter(opt=> hideOsoujiOpt ? !opt.isOsoujiOpt : true);
+  const list=document.getElementById('optionList');
+  list.innerHTML='';
+  fixedOpts.forEach(opt=>{
+    const qty=optQty[opt.id]||0,isOn=qty>0;
+    const row=document.createElement('div');
+    row.className='option-row'+(isOn?' selected':'');
+    row.innerHTML=`<div class="option-check">${isOn?'✓':''}</div>
+      <div class="option-info" onclick="toggleOpt('${opt.id}',false)">
+        <div class="option-name">${opt.name}${opt.popular?' 🌟':''}</div>
+        <div class="option-unit-price">1セット ¥${opt.price.toLocaleString()}</div>
+      </div>
+      <div class="opt-qty-ctrl">
+        <button class="opt-qty-btn" onclick="changeOpt('${opt.id}',-1,false)">－</button>
+        <div class="opt-qty-val">${qty}</div>
+        <button class="opt-qty-btn" onclick="changeOpt('${opt.id}',1,false)">＋</button>
+      </div>
+      <div class="opt-total-price">${qty>0?'¥'+(opt.price*qty).toLocaleString():''}</div>`;
+    list.appendChild(row);
+  });
+
+  // カスタムオプション（名前・金額が入力済みのもののみ）
+  const customOpts=loadCustomOpts().filter(o=>o.name&&o.name.trim()&&o.price>0);
+  const customCard=document.getElementById('customOptCard');
+  const customList=document.getElementById('customOptionList');
+  if(customOpts.length===0){customCard.style.display='none';return;}
+  customCard.style.display='block';
+  customList.innerHTML='';
+  customOpts.forEach(opt=>{
+    const qty=customOptQty[opt.id]||0,isOn=qty>0;
+    const row=document.createElement('div');
+    row.className='option-row'+(isOn?' selected':'');
+    row.innerHTML=`<div class="option-check">${isOn?'✓':''}</div>
+      <div class="option-info" onclick="toggleOpt('${opt.id}',true)">
+        <div class="option-name">${opt.name}</div>
+        <div class="option-unit-price">1セット ¥${opt.price.toLocaleString()}</div>
+      </div>
+      <div class="opt-qty-ctrl">
+        <button class="opt-qty-btn" onclick="changeOpt('${opt.id}',-1,true)">－</button>
+        <div class="opt-qty-val">${qty}</div>
+        <button class="opt-qty-btn" onclick="changeOpt('${opt.id}',1,true)">＋</button>
+      </div>
+      <div class="opt-total-price">${qty>0?'¥'+(opt.price*qty).toLocaleString():''}</div>`;
+    customList.appendChild(row);
+  });
+}
+
+// ===== 計算 =====
+function calc(){
+  const platform=document.getElementById('platform').value;
+  const ptype=PLATFORMS[platform]?.type;
+  const isYM=platform==='yourmeister';
+  const dateStr=getSelectedDate();
+  const fixedOpts=loadFixedOpts();
+  const customOpts=loadCustomOpts().filter(o=>o.name&&o.name.trim()&&o.price>0);
+  let breakdown=[],acAmt=0,optAmt=0;
+
+  if(isYM||platform==='chirashi'){
+    // YM・チラシ：通常＋お掃除の台数別合計
+    const p=getPricesForDate(platform,dateStr);
+    if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`通常エアコン ${normalCount}台`,amount:a});acAmt+=a;}
+    if(osoujiCount>0){const a=p[`osouji_${osoujiCount}`]??0;breakdown.push({label:`お掃除機能付き ${osoujiCount}台`,amount:a});acAmt+=a;}
+  } else if(ptype==='table'){
+    // 自社：基本料金のみ（台数別合計）
+    const p=getPricesForDate(platform,dateStr);
+    if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`基本料金 ${normalCount}台`,amount:a});acAmt+=a;}
+  } else if(ptype==='unit'){
+    // くらし・おうち：基本料金（個別設定）
+    const p=getPricesForDate(platform,dateStr);
+    if(normalCount>0){const a=getUnitAmount(p,'normal',normalCount);breakdown.push({label:`基本料金 ${normalCount}台`,amount:a});acAmt+=a;}
+  } else if(ptype==='free'){
+    const fn=parseInt(document.getElementById('freeNormal').value)||0;
+    const fo=parseInt(document.getElementById('freeOsouji').value)||0;
+    if(fn>0){breakdown.push({label:'通常エアコン',amount:fn});acAmt+=fn;}
+    if(fo>0){breakdown.push({label:'お掃除機能付き',amount:fo});acAmt+=fo;}
+  }
+
+  // 固定オプション（YM・チラシはosouji_optを除外）
+  const hideOsouji=isYM||platform==='chirashi';
+  fixedOpts.filter(opt=> hideOsouji ? !opt.isOsoujiOpt : true).forEach(opt=>{
+    const qty=optQty[opt.id]||0;
+    if(qty>0){const a=opt.price*qty;breakdown.push({label:`${opt.name} × ${qty}`,amount:a});optAmt+=a;}
+  });
+  customOpts.forEach(opt=>{
+    const qty=customOptQty[opt.id]||0;
+    if(qty>0){const a=opt.price*qty;breakdown.push({label:`${opt.name} × ${qty}`,amount:a});optAmt+=a;}
+  });
+
+  const workTotal=acAmt+optAmt;
+  let couponAmt=0,couponLabel='';
+  if(isYM){
+    const cv=document.getElementById('ymCoupon').value;
+    const[ct,cval]=cv.split(':');const cn=parseInt(cval)||0;
+    if(ct==='flat'&&cn>0){couponAmt=cn;couponLabel=`クーポン（${cn.toLocaleString()}円引き）`;}
+    else if(ct==='pct'&&cn>0){couponAmt=Math.floor(workTotal*cn/100);couponLabel=`クーポン（${cn}%割引）`;}
+  }
+  const workSub=workTotal-couponAmt;
+  const ymFee=isYM&&workSub>0?Math.ceil(workSub*0.15):0;
+  const kobarai=isYM?parseInt(document.getElementById('ymKobarai').value)||0:0;
+  const hosho=isYM?parseInt(document.getElementById('ymHosho').value)||0:0;
+  const total=workSub+ymFee+kobarai+hosho;
+
+  document.getElementById('totalAmount').innerHTML=`¥${Math.max(0,total).toLocaleString()}<small>円</small>`;
+  let bHtml='';
+  breakdown.forEach(b=>{bHtml+=`<div class="bd-row"><span>${b.label}</span><span>¥${b.amount.toLocaleString()}</span></div>`;});
+  if(isYM){
+    bHtml+='<div class="bd-sep"></div>';
+    if(couponAmt>0)bHtml+=`<div class="bd-row discount"><span>${couponLabel}</span><span class="green-txt">－¥${couponAmt.toLocaleString()}</span></div>`;
+    if(couponAmt>0)bHtml+=`<div class="bd-row" style="font-size:11px;opacity:.7;"><span>作業料金小計</span><span>¥${workSub.toLocaleString()}</span></div>`;
+    if(ymFee>0)bHtml+=`<div class="bd-row fee"><span>サービス料（小計×15%）</span><span>＋¥${ymFee.toLocaleString()}</span></div>`;
+    if(kobarai>0)bHtml+=`<div class="bd-row extra"><span>後払い決済手数料</span><span>＋¥${kobarai.toLocaleString()}</span></div>`;
+    if(hosho>0)bHtml+=`<div class="bd-row extra"><span>ご満足保証プラス</span><span>＋¥${hosho.toLocaleString()}</span></div>`;
+  }
+  if(breakdown.length>0)bHtml+=`<div class="bd-row total-line"><span>合計</span><span>¥${Math.max(0,total).toLocaleString()}</span></div>`;
+  document.getElementById('breakdown').innerHTML=bHtml;
+}
+
+// ===== リセット =====
+function resetAll(){
+  normalCount=0;osoujiCount=0;optQty={};customOptQty={};
+  syncCounterDisplays();
+  document.getElementById('platform').value='jisha';
+  document.getElementById('orderDate').value='';
+  document.getElementById('dateBadge').textContent='日付を選択';
+  document.getElementById('dateBadge').className='date-badge';
+  ['normalHint','osoujiHint','normalHintYM','osoujiHintYM','normalHint2'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  document.getElementById('ymCard').style.display='none';
+  document.getElementById('freeCard').style.display='none';
+  document.getElementById('unitCard').style.display='none';
+  document.getElementById('counterCard').style.display='block';
+  document.getElementById('counterCardYM').style.display='none';
+  document.getElementById('freeNormal').value='';
+  document.getElementById('freeOsouji').value='';
+  document.getElementById('ymCoupon').value='flat:0';
+  document.getElementById('ymKobarai').value='0';
+  document.getElementById('ymHosho').value='0';
+  renderOptions();calc();
+}
+
+// ===== タブ =====
+function switchTab(mode){
+  if(mode==='admin'&&!adminLoggedIn){showPwOverlay();return;}
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(mode==='calc'&&i===0)||(mode==='admin'&&i===1));});
+  document.getElementById('calcSection').classList.toggle('hidden',mode!=='calc');
+  document.getElementById('adminSection').classList.toggle('active',mode==='admin');
+  if(mode==='admin')renderAdminPanel();
+}
+
+// ===== パスワード =====
+let pwBuf='';
+function showPwOverlay(){pwBuf='';updatePwDots();document.getElementById('pwError').textContent='';document.getElementById('pwOverlay').classList.remove('hidden');}
+function hidePwOverlay(){document.getElementById('pwOverlay').classList.add('hidden');}
+function updatePwDots(){for(let i=0;i<4;i++)document.getElementById(`d${i}`).className='pw-dot'+(i<pwBuf.length?' filled':'');}
+function pwInput(n){
+  if(pwBuf.length>=4)return;
+  pwBuf+=n;updatePwDots();
+  if(pwBuf.length===4){setTimeout(()=>{
+    if(pwBuf===loadPw()){adminLoggedIn=true;hidePwOverlay();switchTab('admin');}
+    else{document.getElementById('pwError').textContent='パスワードが違います';pwBuf='';updatePwDots();}
+  },200);}
+}
+function pwDel(){if(pwBuf.length>0){pwBuf=pwBuf.slice(0,-1);updatePwDots();}}
+function adminLogout(){adminLoggedIn=false;switchTab('calc');}
+function changePassword(){
+  const v=document.getElementById('newPwInput').value.trim();
+  if(!/^\d{4}$/.test(v)){alert('4桁の数字を入力してください');return;}
+  savePw(v);document.getElementById('newPwInput').value='';showSaved('savedMsgPw');
+}
+
+// ===== 管理画面描画 =====
+function renderAdminPanel(){
+  // 固定オプション
+  const fixedOpts=loadFixedOpts();
+  document.getElementById('optionEditor').innerHTML=fixedOpts.map(opt=>`
+    <div class="opt-admin-row">
+      <div class="opt-admin-label">${opt.name}${opt.isOsoujiOpt?'<br><span style="font-size:10px;color:#ec4899;">※自社・くらし・おうちのオプション欄に表示</span>':''}</div>
+      <input class="opt-admin-input" type="number" id="fopt_${opt.id}" value="${opt.price}">
+      <span style="font-size:12px;color:#6b7280;">円</span>
+    </div>`).join('');
+
+  // カスタムオプション
+  const customOpts=loadCustomOpts();
+  document.getElementById('customOptEditor').innerHTML=customOpts.map((opt,i)=>`
+    <div class="custom-opt-row">
+      <span class="custom-opt-num">${i+1}</span>
+      <input class="custom-opt-name" type="text" id="cname_${i}" value="${opt.name}" placeholder="オプション名">
+      <input class="custom-opt-price" type="number" id="cprice_${i}" value="${opt.price||''}" placeholder="0">
+      <span class="custom-opt-suffix">円</span>
+    </div>`).join('');
+}
+
+function saveFixedOptions(){
+  const opts=loadFixedOpts();
+  opts.forEach(opt=>{const el=document.getElementById(`fopt_${opt.id}`);if(el)opt.price=parseInt(el.value)||0;});
+  saveFixedOptsDB(opts);showSaved('savedMsgOpt');renderOptions();calc();
+}
+
+function saveCustomOptions(){
+  const opts=loadCustomOpts();
+  opts.forEach((opt,i)=>{
+    const nameEl=document.getElementById(`cname_${i}`);
+    const priceEl=document.getElementById(`cprice_${i}`);
+    if(nameEl)opt.name=nameEl.value.trim();
+    if(priceEl)opt.price=parseInt(priceEl.value)||0;
+  });
+  saveCustomOptsDB(opts);showSaved('savedMsgCustom');renderOptions();calc();
+}
+
+function showSaved(id){const el=document.getElementById(id);el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
+
+// ===== 初期化 =====
+loadStoreList();
+document.getElementById('orderDate').value=getTodayStr();
+onDateChange();
+// 初期媒体がユアマイスターなので2カウンター表示に
+document.getElementById('counterCard').style.display='none';
+document.getElementById('counterCardYM').style.display='block';
+document.getElementById('ymCard').style.display='block';
+renderOptions();
+calc();
+</script>
+</body>
+</html>
