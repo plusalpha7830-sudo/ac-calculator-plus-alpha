@@ -731,10 +731,6 @@ function updateHints(){
     const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
     if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
     if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 → ¥${(p[`osouji_${osoujiCount}`]??0).toLocaleString()}`;}else oh.style.display='none';}
-    const p=getPricesForDate(platform,dateStr);
-    const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
-    if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
-    if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 → ¥${(p[`osouji_${osoujiCount}`]??0).toLocaleString()}`;}else oh.style.display='none';}
   } else if(ptype==='table'){
     // 自社：normalのみ
     const p=getPricesForDate(platform,dateStr);
