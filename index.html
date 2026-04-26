@@ -563,18 +563,9 @@ function buildDbFromSheet(rows){
     if(!medium || !PLATFORMS[medium]) return;
 
     const prices = {};
-    if(medium==='yourmeister'||medium==='jisha'||medium==='chirashi'){
-      for(let i=1;i<=10;i++) prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
-      for(let i=1;i<=10;i++) prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
-      prices['osouji_5plus']=Number(row['お掃除単価5plus']||0);
-    } else {
-      for(let i=1;i<=4;i++){
-        prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
-        prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
-      }
-      prices['normal_5plus']=Number(row['通常単価5plus']||0);
-      prices['osouji_5plus']=Number(row['お掃除単価5plus']||0);
-    }
+    // 全媒体台数別合計方式
+    for(let i=1;i<=10;i++) prices[`normal_${i}`]=Number(row[`通常${i}台`]||0);
+    for(let i=1;i<=10;i++) prices[`osouji_${i}`]=Number(row[`お掃除${i}台`]||0);
     prices['osouji_opt']=Number(row['お掃除オプション単価']||0);
 
     if(!newDb[medium]) newDb[medium]={history:[]};
@@ -618,8 +609,8 @@ function buildDbFromSheet(rows){
 
 const PLATFORMS = {
   yourmeister: { name:'ユアマイスター',            type:'table' },
-  kurashi:     { name:'くらしのマーケット',          type:'unit'  },
-  ouchi:       { name:'おうちにプロ',               type:'unit'  },
+  kurashi:     { name:'くらしのマーケット',          type:'table' },
+  ouchi:       { name:'おうちにプロ',               type:'table' },
   jisha:       { name:'自社（直接・HPやLINE等）',   type:'table' },
   chirashi:    { name:'チラシ',                    type:'table' },
   other:       { name:'その他',                   type:'free'  },
@@ -735,8 +726,11 @@ function updateHints(){
   const isYM=platform==='yourmeister';
   const dateStr=getSelectedDate();
 
-  if(isYM||platform==='chirashi'){
-    // YM・チラシ：通常＋お掃除の2カウンター
+  if(platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'){
+    const p=getPricesForDate(platform,dateStr);
+    const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
+    if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
+    if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 → ¥${(p[`osouji_${osoujiCount}`]??0).toLocaleString()}`;}else oh.style.display='none';}
     const p=getPricesForDate(platform,dateStr);
     const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
     if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
@@ -764,14 +758,13 @@ function onPlatformChange(){
   const platform=document.getElementById('platform').value;
   const ptype=PLATFORMS[platform]?.type;
   const isYM=platform==='yourmeister';
-  const isChirashi=platform==='chirashi';
-  const needsDualCounter=isYM||isChirashi; // 通常＋お掃除2カウンター
-  // カウンター表示切替
-  document.getElementById('counterCard').style.display   = (ptype==='table'&&!needsDualCounter) ? 'block' : 'none';
-  document.getElementById('counterCardYM').style.display = needsDualCounter                     ? 'block' : 'none';
-  document.getElementById('unitCard').style.display      = ptype==='unit'                       ? 'block' : 'none';
-  document.getElementById('freeCard').style.display      = ptype==='free'                       ? 'block' : 'none';
-  document.getElementById('ymCard').style.display        = isYM                                 ? 'block' : 'none';
+  const isJisha=platform==='jisha';
+  const needsDualCounter=ptype==='table'&&!isJisha;
+  document.getElementById('counterCard').style.display   = (ptype==='table'&&isJisha) ? 'block' : 'none';
+  document.getElementById('counterCardYM').style.display = needsDualCounter            ? 'block' : 'none';
+  document.getElementById('unitCard').style.display      = 'none';
+  document.getElementById('freeCard').style.display      = ptype==='free'              ? 'block' : 'none';
+  document.getElementById('ymCard').style.display        = isYM                        ? 'block' : 'none';
   if(!needsDualCounter){ osoujiCount=0; syncCounterDisplays(); }
   if(!isYM){document.getElementById('ymCoupon').value='flat:0';document.getElementById('ymKobarai').value='0';document.getElementById('ymHosho').value='0';}
   updateHints();calc();
@@ -791,9 +784,7 @@ function toggleOpt(id,isCustom){
 
 function renderOptions(){
   const platform=document.getElementById('platform').value;
-  const isYM=platform==='yourmeister';
-  const hideOsoujiOpt=isYM||platform==='chirashi';
-  // 固定オプション：YM・チラシのときはosouji_optを非表示
+  const hideOsoujiOpt=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi';
   const fixedOpts=loadFixedOpts().filter(opt=> hideOsoujiOpt ? !opt.isOsoujiOpt : true);
   const list=document.getElementById('optionList');
   list.innerHTML='';
@@ -851,7 +842,7 @@ function calc(){
   const customOpts=loadCustomOpts().filter(o=>o.name&&o.name.trim()&&o.price>0);
   let breakdown=[],acAmt=0,optAmt=0;
 
-  if(isYM||platform==='chirashi'){
+  if(platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'){
     const p=getPricesForDate(platform,dateStr);
     if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`通常エアコン ${normalCount}台`,amount:a});acAmt+=a;}
     if(osoujiCount>0){
@@ -873,8 +864,7 @@ function calc(){
     if(fo>0){breakdown.push({label:'お掃除機能付き',amount:fo});acAmt+=fo;}
   }
 
-  // 固定オプション（YM・チラシはosouji_optを除外）
-  const hideOsouji=isYM||platform==='chirashi';
+  const hideOsouji=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi';
   fixedOpts.filter(opt=> hideOsouji ? !opt.isOsoujiOpt : true).forEach(opt=>{
     const qty=optQty[opt.id]||0;
     if(qty>0){const a=opt.price*qty;breakdown.push({label:`${opt.name} × ${qty}`,amount:a});optAmt+=a;}
@@ -1010,7 +1000,6 @@ function showSaved(id){const el=document.getElementById(id);el.classList.add('sh
 loadStoreList();
 document.getElementById('orderDate').value=getTodayStr();
 onDateChange();
-// 初期媒体がユアマイスターなので2カウンター表示に
 document.getElementById('counterCard').style.display='none';
 document.getElementById('counterCardYM').style.display='block';
 document.getElementById('ymCard').style.display='block';
