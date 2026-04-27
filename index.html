@@ -278,18 +278,27 @@
       </select>
     </div>
 
-    <!-- 台数（自社）：基本料金カウンター1つ -->
+    <!-- 台数（自社・くらし・おうち）：基本台数＋お掃除追加台数 -->
     <div class="card" id="counterCard">
       <div class="card-title">台数を選ぶ</div>
-      <div style="max-width:200px;margin:0 auto;">
+      <div class="counter-grid">
         <div class="counter-item">
-          <div class="counter-label">基本料金<span>（家庭用壁掛けエアコン）</span></div>
+          <div class="counter-label">基本台数<span>（家庭用壁掛けエアコン）</span></div>
           <div class="counter-control">
             <button class="counter-btn" onclick="changeAC('normal',-1)">－</button>
             <div class="counter-val" id="normalVal">0</div>
             <button class="counter-btn" onclick="changeAC('normal',1)">＋</button>
           </div>
           <div class="unit-price-hint" id="normalHint" style="display:none;"></div>
+        </div>
+        <div class="counter-item">
+          <div class="counter-label">うちお掃除機能付き<span>（追加料金）</span></div>
+          <div class="counter-control">
+            <button class="counter-btn" onclick="changeAC('osouji',-1)">－</button>
+            <div class="counter-val" id="osoujiVal">0</div>
+            <button class="counter-btn" onclick="changeAC('osouji',1)">＋</button>
+          </div>
+          <div class="unit-price-hint" id="osoujiHint" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -738,14 +747,25 @@ function onDateChange(){
 
 // ===== エアコン台数 =====
 function changeAC(type,delta){
-  if(type==='normal'){normalCount=Math.max(0,Math.min(10,normalCount+delta));}
-  else{osoujiCount=Math.max(0,Math.min(10,osoujiCount+delta));}
+  const platform=document.getElementById('platform').value;
+  const isCounterCard=platform==='jisha'||platform==='kurashi'||platform==='ouchi';
+  if(type==='normal'){
+    normalCount=Math.max(0,Math.min(10,normalCount+delta));
+    if(isCounterCard&&osoujiCount>normalCount) osoujiCount=normalCount;
+  } else {
+    if(isCounterCard){
+      osoujiCount=Math.max(0,Math.min(normalCount,osoujiCount+delta));
+    } else {
+      osoujiCount=Math.max(0,Math.min(10,osoujiCount+delta));
+    }
+  }
   syncCounterDisplays();updateHints();calc();
 }
 function syncCounterDisplays(){
-  // 自社・unit系（normalのみ）
-  ['normalVal','normalVal2'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=normalCount;});
-  // YM専用カウンター
+  // 自社・くらし・おうち用カウンター
+  const nv=document.getElementById('normalVal');if(nv)nv.textContent=normalCount;
+  const ov=document.getElementById('osoujiVal');if(ov)ov.textContent=osoujiCount;
+  // YM・チラシ用カウンター
   const ymN=document.getElementById('normalValYM');if(ymN)ymN.textContent=normalCount;
   const ymO=document.getElementById('osoujiValYM');if(ymO)ymO.textContent=osoujiCount;
 }
@@ -765,30 +785,22 @@ function getUnitAmount(p, type, count) {
 
 function updateHints(){
   const platform=document.getElementById('platform').value;
-  const ptype=PLATFORMS[platform]?.type;
-  const isYM=platform==='yourmeister';
   const dateStr=getSelectedDate();
+  const opts=loadFixedOpts();
+  const osoujiOpt=opts.find(o=>o.isOsoujiOpt);
+  const osoujiUnitPrice=osoujiOpt?osoujiOpt.price:6000;
 
-  if(platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'){
+  if(platform==='yourmeister'||platform==='chirashi'){
     const p=getPricesForDate(platform,dateStr);
     const nh=document.getElementById('normalHintYM'),oh=document.getElementById('osoujiHintYM');
     if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
     if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 → ¥${(p[`osouji_${osoujiCount}`]??0).toLocaleString()}`;}else oh.style.display='none';}
-  } else if(ptype==='table'){
-    // 自社：normalのみ
+  } else if(platform==='jisha'||platform==='kurashi'||platform==='ouchi'){
     const p=getPricesForDate(platform,dateStr);
     const nh=document.getElementById('normalHint');
+    const oh=document.getElementById('osoujiHint');
     if(nh){if(normalCount>0){nh.style.display='block';nh.textContent=`${normalCount}台 → ¥${(p[`normal_${normalCount}`]??0).toLocaleString()}`;}else nh.style.display='none';}
-  } else if(ptype==='unit'){
-    const p=getPricesForDate(platform,dateStr);
-    const nh=document.getElementById('normalHint2');
-    if(nh){
-      if(normalCount>0){
-        const amt=getUnitAmount(p,'normal',normalCount);
-        const hint=normalCount<=4?`${normalCount}台 → ¥${amt.toLocaleString()}`:`4台 + ${normalCount-4}台×¥${(p.normal_5plus??0).toLocaleString()} = ¥${amt.toLocaleString()}`;
-        nh.style.display='block';nh.textContent=hint;
-      } else nh.style.display='none';
-    }
+    if(oh){if(osoujiCount>0){oh.style.display='block';oh.textContent=`${osoujiCount}台 × ¥${osoujiUnitPrice.toLocaleString()} = ¥${(osoujiUnitPrice*osoujiCount).toLocaleString()}`;}else oh.style.display='none';}
   }
 }
 
@@ -797,16 +809,19 @@ function onPlatformChange(){
   const platform=document.getElementById('platform').value;
   const ptype=PLATFORMS[platform]?.type;
   const isYM=platform==='yourmeister';
-  const isJisha=platform==='jisha';
-  const needsDualCounter=ptype==='table'&&!isJisha;
-  document.getElementById('counterCard').style.display   = (ptype==='table'&&isJisha) ? 'block' : 'none';
-  document.getElementById('counterCardYM').style.display = needsDualCounter            ? 'block' : 'none';
+  const isCounterCard=platform==='jisha'||platform==='kurashi'||platform==='ouchi';
+  const isYMCard=platform==='yourmeister'||platform==='chirashi';
+
+  document.getElementById('counterCard').style.display   = isCounterCard ? 'block' : 'none';
+  document.getElementById('counterCardYM').style.display = isYMCard      ? 'block' : 'none';
   document.getElementById('unitCard').style.display      = 'none';
-  document.getElementById('freeCard').style.display      = ptype==='free'              ? 'block' : 'none';
-  document.getElementById('ymCard').style.display        = isYM                        ? 'block' : 'none';
-  if(!needsDualCounter){ osoujiCount=0; syncCounterDisplays(); }
+  document.getElementById('freeCard').style.display      = ptype==='free' ? 'block' : 'none';
+  document.getElementById('ymCard').style.display        = isYM           ? 'block' : 'none';
+
+  if(!isCounterCard&&!isYMCard){ osoujiCount=0; }
+  if(isCounterCard){ osoujiCount=Math.min(osoujiCount,normalCount); }
+  syncCounterDisplays();
   if(!isYM){document.getElementById('ymCoupon').value='flat:0';document.getElementById('ymKobarai').value='0';document.getElementById('ymHosho').value='0';}
-  // 媒体に合わせてオプション単価を更新
   applyOptPricesForMedium(platform);
   updateHints();calc();
 }
@@ -825,7 +840,7 @@ function toggleOpt(id,isCustom){
 
 function renderOptions(){
   const platform=document.getElementById('platform').value;
-  const hideOsoujiOpt=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi';
+  const hideOsoujiOpt=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'||platform==='jisha';
   const fixedOpts=loadFixedOpts().filter(opt=> hideOsoujiOpt ? !opt.isOsoujiOpt : true);
   const list=document.getElementById('optionList');
   list.innerHTML='';
@@ -883,21 +898,18 @@ function calc(){
   const customOpts=loadCustomOpts().filter(o=>o.name&&o.name.trim()&&o.price>0);
   let breakdown=[],acAmt=0,optAmt=0;
 
-  if(platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'){
+  if(platform==='yourmeister'||platform==='chirashi'){
     const p=getPricesForDate(platform,dateStr);
     if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`通常エアコン ${normalCount}台`,amount:a});acAmt+=a;}
-    if(osoujiCount>0){
-      const a=p[`osouji_${osoujiCount}`]??0;
-      breakdown.push({label:`お掃除機能付き ${osoujiCount}台`,amount:a});acAmt+=a;
-    }
-  } else if(ptype==='table'){
-    // 自社：基本料金のみ（台数別合計）
+    if(osoujiCount>0){const a=p[`osouji_${osoujiCount}`]??0;breakdown.push({label:`お掃除機能付き ${osoujiCount}台`,amount:a});acAmt+=a;}
+  } else if(platform==='jisha'||platform==='kurashi'||platform==='ouchi'){
+    // 基本台数で料金、うちお掃除付きは単価×台数で追加
     const p=getPricesForDate(platform,dateStr);
+    const opts=loadFixedOpts();
+    const osoujiOpt=opts.find(o=>o.isOsoujiOpt);
+    const osoujiUnitPrice=osoujiOpt?osoujiOpt.price:6000;
     if(normalCount>0){const a=p[`normal_${normalCount}`]??0;breakdown.push({label:`基本料金 ${normalCount}台`,amount:a});acAmt+=a;}
-  } else if(ptype==='unit'){
-    // くらし・おうち：基本料金（個別設定）
-    const p=getPricesForDate(platform,dateStr);
-    if(normalCount>0){const a=getUnitAmount(p,'normal',normalCount);breakdown.push({label:`基本料金 ${normalCount}台`,amount:a});acAmt+=a;}
+    if(osoujiCount>0){const a=osoujiUnitPrice*osoujiCount;breakdown.push({label:`お掃除機能付き追加 ${osoujiCount}台（¥${osoujiUnitPrice.toLocaleString()}/台）`,amount:a});acAmt+=a;}
   } else if(ptype==='free'){
     const fn=parseInt(document.getElementById('freeNormal').value)||0;
     const fo=parseInt(document.getElementById('freeOsouji').value)||0;
@@ -905,7 +917,7 @@ function calc(){
     if(fo>0){breakdown.push({label:'お掃除機能付き',amount:fo});acAmt+=fo;}
   }
 
-  const hideOsouji=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi';
+  const hideOsouji=platform==='yourmeister'||platform==='chirashi'||platform==='kurashi'||platform==='ouchi'||platform==='jisha';
   fixedOpts.filter(opt=> hideOsouji ? !opt.isOsoujiOpt : true).forEach(opt=>{
     const qty=optQty[opt.id]||0;
     if(qty>0){const a=opt.price*qty;breakdown.push({label:`${opt.name} × ${qty}`,amount:a});optAmt+=a;}
@@ -952,12 +964,13 @@ function resetAll(){
   document.getElementById('orderDate').value='';
   document.getElementById('dateBadge').textContent='日付を選択';
   document.getElementById('dateBadge').className='date-badge';
-  ['normalHint','osoujiHint','normalHintYM','osoujiHintYM','normalHint2'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  ['normalHint','osoujiHint','normalHintYM','osoujiHintYM'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   document.getElementById('ymCard').style.display='none';
   document.getElementById('freeCard').style.display='none';
   document.getElementById('unitCard').style.display='none';
-  document.getElementById('counterCard').style.display='block';
-  document.getElementById('counterCardYM').style.display='none';
+  document.getElementById('counterCard').style.display='none';
+  document.getElementById('counterCardYM').style.display='block';
+  document.getElementById('ymCard').style.display='block';
   document.getElementById('freeNormal').value='';
   document.getElementById('freeOsouji').value='';
   document.getElementById('ymCoupon').value='flat:0';
