@@ -361,7 +361,16 @@
       </div>
     </div>
 
-    <!-- オプション（固定） -->
+    <!-- くらしのマーケット専用：駐車料金 -->
+    <div class="card" id="parkingCard" style="display:none;">
+      <div class="card-title">🚗 駐車料金</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="number" id="parkingFee" placeholder="0" oninput="calc()"
+          style="flex:1;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:20px;font-weight:700;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--pink-pale);text-align:right;">
+        <span style="font-size:15px;font-weight:600;color:var(--text-muted);flex-shrink:0;">円</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">※売上登録金額には含まれません</div>
+    </div>
     <div class="card">
       <div class="card-title">オプション</div>
       <div class="option-list" id="optionList"></div>
@@ -423,7 +432,7 @@
       <div class="total-label">お客様へのご請求合計</div>
       <div class="total-amount" id="totalAmount">¥0<small>円</small></div>
       <div id="workSubtotalArea" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.3);">
-        <div style="font-size:11px;opacity:.8;margin-bottom:2px;">売上登録金額（クーポン適用前）</div>
+        <div style="font-size:11px;opacity:.8;margin-bottom:2px;" id="workSubtotalLabel">売上登録金額（クーポン適用前）</div>
         <div style="font-size:24px;font-weight:900;letter-spacing:-0.5px;" id="workSubtotalAmount">¥0<small style="font-size:14px;margin-left:3px;">円</small></div>
       </div>
       <div class="total-breakdown" id="breakdown"></div>
@@ -825,7 +834,8 @@ function onPlatformChange(){
   if(!isCounterCard&&!isYMCard){ osoujiCount=0; }
   if(isCounterCard){ osoujiCount=Math.min(osoujiCount,normalCount); }
   syncCounterDisplays();
-  if(!isYM){document.getElementById('ymCoupon').value='flat:0';document.getElementById('ymKobarai').value='0';document.getElementById('ymHosho').value='0';}
+  document.getElementById('parkingCard').style.display = platform==='kurashi' ? 'block' : 'none';
+  if(platform!=='kurashi') document.getElementById('parkingFee').value='';
   applyOptPricesForMedium(platform);
   updateHints();calc();
 }
@@ -943,18 +953,11 @@ function calc(){
   const ymFee=isYM&&workSub>0?Math.ceil(workSub*0.15):0;
   const kobarai=isYM?parseInt(document.getElementById('ymKobarai').value)||0:0;
   const hosho=isYM?parseInt(document.getElementById('ymHosho').value)||0:0;
-  const total=workSub+ymFee+kobarai+hosho;
+  const parking = platform==='kurashi' ? parseInt(document.getElementById('parkingFee').value)||0 : 0;
+  const total=workSub+ymFee+kobarai+hosho+parking;
 
   document.getElementById('totalAmount').innerHTML=`¥${Math.max(0,total).toLocaleString()}<small>円</small>`;
 
-  // ユアマイスターのみ売上登録金額（クーポン前の作業料金）を表示
-  const wsArea=document.getElementById('workSubtotalArea');
-  if(isYM && workTotal>0){
-    wsArea.style.display='block';
-    document.getElementById('workSubtotalAmount').innerHTML=`¥${workTotal.toLocaleString()}<small style="font-size:14px;margin-left:3px;">円</small>`;
-  } else {
-    wsArea.style.display='none';
-  }
   let bHtml='';
   breakdown.forEach(b=>{bHtml+=`<div class="bd-row"><span>${b.label}</span><span>¥${b.amount.toLocaleString()}</span></div>`;});
   if(isYM){
@@ -965,8 +968,27 @@ function calc(){
     if(kobarai>0)bHtml+=`<div class="bd-row extra"><span>後払い決済手数料</span><span>＋¥${kobarai.toLocaleString()}</span></div>`;
     if(hosho>0)bHtml+=`<div class="bd-row extra"><span>ご満足保証プラス</span><span>＋¥${hosho.toLocaleString()}</span></div>`;
   }
+  if(platform==='kurashi'&&parking>0){
+    bHtml+=`<div class="bd-row extra"><span>駐車料金</span><span>＋¥${parking.toLocaleString()}</span></div>`;
+  }
   if(breakdown.length>0)bHtml+=`<div class="bd-row total-line"><span>合計</span><span>¥${Math.max(0,total).toLocaleString()}</span></div>`;
   document.getElementById('breakdown').innerHTML=bHtml;
+
+  // 売上登録金額の表示
+  const wsArea=document.getElementById('workSubtotalArea');
+  const wsLabel=document.getElementById('workSubtotalLabel');
+  const wsAmount=document.getElementById('workSubtotalAmount');
+  if(isYM && workTotal>0){
+    wsArea.style.display='block';
+    wsLabel.textContent='売上登録金額（クーポン適用前）';
+    wsAmount.innerHTML=`¥${workTotal.toLocaleString()}<small style="font-size:14px;margin-left:3px;">円</small>`;
+  } else if(platform==='kurashi' && parking>0){
+    wsArea.style.display='block';
+    wsLabel.textContent='売上登録金額（駐車料金除く）';
+    wsAmount.innerHTML=`¥${(total-parking).toLocaleString()}<small style="font-size:14px;margin-left:3px;">円</small>`;
+  } else {
+    wsArea.style.display='none';
+  }
 }
 
 // ===== リセット =====
@@ -984,7 +1006,8 @@ function resetAll(){
   document.getElementById('counterCard').style.display='none';
   document.getElementById('counterCardYM').style.display='block';
   document.getElementById('ymCard').style.display='block';
-  document.getElementById('freeNormal').value='';
+  document.getElementById('parkingFee').value='';
+  document.getElementById('parkingCard').style.display='none';
   document.getElementById('freeOsouji').value='';
   document.getElementById('ymCoupon').value='flat:0';
   document.getElementById('ymKobarai').value='0';
