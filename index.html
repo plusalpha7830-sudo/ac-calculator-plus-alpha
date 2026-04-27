@@ -556,6 +556,25 @@ function storeLogout(){
 }
 
 // スプレッドシートデータ → dbオブジェクトに変換
+function applyOptPricesForMedium(medium){
+  const priceMap = window._optPricesByMedium;
+  if(!priceMap) return;
+  const p = priceMap[medium] || priceMap[Object.keys(priceMap)[0]];
+  if(!p) return;
+  const opts = loadFixedOpts();
+  opts.forEach(opt=>{
+    if(opt.id==='nano'    && p.nano)    opt.price=p.nano;
+    if(opt.id==='gaiki'   && p.gaiki)   opt.price=p.gaiki;
+    if(opt.id==='dorain'  && p.dorain)  opt.price=p.dorain;
+    if(opt.id==='bouchuu' && p.bouchuu) opt.price=p.bouchuu;
+    if(opt.id==='kouso'   && p.kouso)   opt.price=p.kouso;
+    if(opt.id==='set2'    && p.set2)    opt.price=p.set2;
+    if(opt.id==='set3'    && p.set3)    opt.price=p.set3;
+    if(opt.isOsoujiOpt    && p.osouji_opt) opt.price=p.osouji_opt;
+  });
+  saveFixedOptsDB(opts);
+}
+
 function filterPlatformsByData(rows){
   // スプレッドシートに存在する媒体コードを収集
   const availableMedia = new Set();
@@ -604,34 +623,27 @@ function buildDbFromSheet(rows){
     else newDb[medium].history.push(entry);
   });
 
-  // 固定オプション単価をスプレッドシートから反映（最初の行から取得）
-  const anyRow=rows[0];
-  if(anyRow){
-    const opts=loadFixedOpts();
-    const mapping = {
-      'nano':    'ナノソルコート単価',
-      'gaiki':   '室外機洗浄単価',
-      'dorain':  'ドレンホース単価',
-      'bouchuu': '防虫キャップ単価',
-      'kouso':   '高所作業費用単価',
-      'set2':    '2点セット単価',
-      'set3':    '3点セット単価',
+  // 固定オプション単価を媒体ごとに保存
+  const optPricesByMedium = {};
+  rows.forEach(row=>{
+    const medium = String(row['媒体']||'').trim();
+    if(!medium) return;
+    optPricesByMedium[medium] = {
+      nano:    Number(row['ナノソルコート単価']||0),
+      gaiki:   Number(row['室外機洗浄単価']||0),
+      dorain:  Number(row['ドレンホース単価']||0),
+      bouchuu: Number(row['防虫キャップ単価']||0),
+      kouso:   Number(row['高所作業費用単価']||0),
+      set2:    Number(row['2点セット単価']||0),
+      set3:    Number(row['3点セット単価']||0),
+      osouji_opt: Number(row['お掃除オプション単価']||0),
     };
-    let changed = false;
-    opts.forEach(opt=>{
-      const col = mapping[opt.id];
-      if(col && anyRow[col] !== undefined && anyRow[col] !== ''){
-        opt.price = Number(anyRow[col]);
-        changed = true;
-      }
-      // お掃除オプション単価
-      if(opt.isOsoujiOpt && anyRow['お掃除オプション単価'] !== undefined){
-        opt.price = Number(anyRow['お掃除オプション単価']||6000);
-        changed = true;
-      }
-    });
-    if(changed) saveFixedOptsDB(opts);
-  }
+  });
+  // 現在の媒体に合わせてオプション単価を更新する関数を登録
+  window._optPricesByMedium = optPricesByMedium;
+
+  // デフォルトは最初の行の単価を適用
+  applyOptPricesForMedium(document.getElementById('platform').value);
 
   db=Object.keys(newDb).length>0?newDb:loadPriceDB();
 }
@@ -794,6 +806,8 @@ function onPlatformChange(){
   document.getElementById('ymCard').style.display        = isYM                        ? 'block' : 'none';
   if(!needsDualCounter){ osoujiCount=0; syncCounterDisplays(); }
   if(!isYM){document.getElementById('ymCoupon').value='flat:0';document.getElementById('ymKobarai').value='0';document.getElementById('ymHosho').value='0';}
+  // 媒体に合わせてオプション単価を更新
+  applyOptPricesForMedium(platform);
   updateHints();calc();
 }
 
