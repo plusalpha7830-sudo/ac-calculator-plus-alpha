@@ -529,6 +529,8 @@ function storeLogin(){
         document.getElementById('headerStoreLabel').textContent=currentStoreName;
         document.getElementById('headerStore').textContent='';
         document.title=`${currentStoreName} 料金計算ツール`;
+        // スプレッドシートにある媒体だけプルダウンに表示
+        filterPlatformsByData(json.data);
         renderOptions();
         calc();
       } else {
@@ -554,6 +556,33 @@ function storeLogout(){
 }
 
 // スプレッドシートデータ → dbオブジェクトに変換
+function filterPlatformsByData(rows){
+  // スプレッドシートに存在する媒体コードを収集
+  const availableMedia = new Set();
+  rows.forEach(row=>{
+    const medium = String(row['媒体']||'').trim();
+    if(medium) availableMedia.add(medium);
+  });
+  // 「その他」は常に表示
+  availableMedia.add('other');
+
+  // プルダウンの選択肢を絞り込む
+  const sel = document.getElementById('platform');
+  const options = sel.querySelectorAll('option');
+  let firstVisible = null;
+  options.forEach(opt=>{
+    if(availableMedia.has(opt.value)){
+      opt.style.display='';
+      if(!firstVisible) firstVisible = opt.value;
+    } else {
+      opt.style.display='none';
+    }
+  });
+  // 最初に表示される媒体を選択
+  if(firstVisible) sel.value = firstVisible;
+  onPlatformChange();
+}
+
 function buildDbFromSheet(rows){
   const newDb = {};
   rows.forEach(row=>{
