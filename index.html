@@ -422,6 +422,10 @@
     <div class="total-card">
       <div class="total-label">お客様へのご請求合計</div>
       <div class="total-amount" id="totalAmount">¥0<small>円</small></div>
+      <div id="workSubtotalArea" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.3);">
+        <div style="font-size:11px;opacity:.8;margin-bottom:2px;">売上登録金額（クーポン適用前）</div>
+        <div style="font-size:24px;font-weight:900;letter-spacing:-0.5px;" id="workSubtotalAmount">¥0<small style="font-size:14px;margin-left:3px;">円</small></div>
+      </div>
       <div class="total-breakdown" id="breakdown"></div>
     </div>
 
@@ -942,6 +946,15 @@ function calc(){
   const total=workSub+ymFee+kobarai+hosho;
 
   document.getElementById('totalAmount').innerHTML=`¥${Math.max(0,total).toLocaleString()}<small>円</small>`;
+
+  // ユアマイスターのみ売上登録金額（クーポン前の作業料金）を表示
+  const wsArea=document.getElementById('workSubtotalArea');
+  if(isYM && workTotal>0){
+    wsArea.style.display='block';
+    document.getElementById('workSubtotalAmount').innerHTML=`¥${workTotal.toLocaleString()}<small style="font-size:14px;margin-left:3px;">円</small>`;
+  } else {
+    wsArea.style.display='none';
+  }
   let bHtml='';
   breakdown.forEach(b=>{bHtml+=`<div class="bd-row"><span>${b.label}</span><span>¥${b.amount.toLocaleString()}</span></div>`;});
   if(isYM){
