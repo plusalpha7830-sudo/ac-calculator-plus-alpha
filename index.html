@@ -99,6 +99,20 @@
   .bd-sep{border-top:1px dashed rgba(255,255,255,.25);margin:3px 0;}
   .green-txt{color:#86efac;}
 
+  /* 支払い方法 */
+  .payment-options{display:flex;flex-direction:column;gap:8px;}
+  .payment-option{display:flex;align-items:center;padding:12px 14px;background:var(--pink-pale);border-radius:var(--radius-sm);border:1.5px solid transparent;cursor:pointer;transition:all .15s;}
+  .payment-option.selected{border-color:var(--pink);background:#fce7f3;}
+  .payment-radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:white;flex-shrink:0;margin-right:10px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+  .payment-option.selected .payment-radio{border-color:var(--pink-dark);background:var(--pink-dark);}
+  .payment-option.selected .payment-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:white;display:block;}
+  .payment-label{font-size:14px;font-weight:600;color:var(--text);}
+  .kobarai-warning{display:none;margin-top:10px;padding:12px 14px;border-radius:var(--radius-sm);background:#7f1d1d;border:2px solid #ef4444;animation:warningPulse 1s infinite;}
+  .kobarai-warning.show{display:block;}
+  .kobarai-warning-title{font-size:15px;font-weight:900;color:#fef2f2;margin-bottom:4px;}
+  .kobarai-warning-body{font-size:12px;color:#fca5a5;font-weight:600;}
+  @keyframes warningPulse{0%,100%{border-color:#ef4444;box-shadow:0 0 8px rgba(239,68,68,.6);}50%{border-color:#fbbf24;box-shadow:0 0 16px rgba(251,191,36,.8);}}
+
   .reset-btn{width:100%;padding:14px;border-radius:var(--radius-sm);border:2px solid var(--pink);background:white;color:var(--pink-dark);font-size:15px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .15s;margin-bottom:30px;}
   .reset-btn:active{background:var(--pink-light);}
 
@@ -366,7 +380,7 @@
       <div class="card-title">🚗 駐車料金</div>
       <div style="display:flex;align-items:center;gap:10px;">
         <input type="number" id="parkingFee" placeholder="0" oninput="calc()"
-          style="flex:1;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:20px;font-weight:700;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--pink-pale);text-align:right;">
+          style="flex:1;min-width:0;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:20px;font-weight:700;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--pink-pale);text-align:right;">
         <span style="font-size:15px;font-weight:600;color:var(--text-muted);flex-shrink:0;">円</span>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">※売上登録金額には含まれません</div>
@@ -382,7 +396,36 @@
       <div class="option-list" id="customOptionList"></div>
     </div>
 
-    <!-- ユアマイスター専用 -->
+    <!-- くらしのマーケット専用：お支払い方法 -->
+    <div class="card" id="paymentCard" style="display:none;">
+      <div class="card-title">💳 お支払い方法</div>
+      <div class="payment-options" id="paymentOptions">
+        <div class="payment-option" onclick="selectPayment('site_credit')">
+          <div class="payment-radio"></div>
+          <div class="payment-label">サイト内決済（クレジットカード）</div>
+        </div>
+        <div class="payment-option" onclick="selectPayment('site_kobarai')">
+          <div class="payment-radio"></div>
+          <div class="payment-label">サイト内決済（後払い）</div>
+        </div>
+        <div class="payment-option" onclick="selectPayment('own_credit')">
+          <div class="payment-radio"></div>
+          <div class="payment-label">クレカ（自社）</div>
+        </div>
+        <div class="payment-option" onclick="selectPayment('paypay')">
+          <div class="payment-radio"></div>
+          <div class="payment-label">PayPay（自社）</div>
+        </div>
+        <div class="payment-option" onclick="selectPayment('cash')">
+          <div class="payment-radio"></div>
+          <div class="payment-label">現金</div>
+        </div>
+      </div>
+      <div class="kobarai-warning" id="kobaraiWarning">
+        <div class="kobarai-warning-title">🚨 金額が40,000円を超えています！</div>
+        <div class="kobarai-warning-body">後払いは40,000円未満のみ利用可能です。<br>クレカ（自社）・PayPay（自社）・現金への変更が必要です！</div>
+      </div>
+    </div>
     <div class="card ym-card" id="ymCard" style="display:none;">
       <div class="card-title ym-title">🟣 ユアマイスター専用</div>
       <div class="ym-fields">
@@ -565,6 +608,31 @@ function storeLogin(){
       document.getElementById('storeError').textContent='通信エラーが発生しました。再度お試しください。';
       console.error(err);
     });
+}
+
+// ===== 支払い方法 =====
+let selectedPayment='';
+const PAYMENT_KEYS=['site_credit','site_kobarai','own_credit','paypay','cash'];
+
+function selectPayment(val){
+  selectedPayment=val;
+  document.querySelectorAll('.payment-option').forEach((el,i)=>{
+    el.classList.toggle('selected', PAYMENT_KEYS[i]===val);
+  });
+  checkKobaraiWarning();
+}
+
+function checkKobaraiWarning(){
+  const warning=document.getElementById('kobaraiWarning');
+  if(!warning) return;
+  const platform=document.getElementById('platform').value;
+  const totalEl=document.getElementById('totalAmount');
+  const total=parseInt((totalEl.textContent||'').replace(/[^0-9]/g,''))||0;
+  if(platform==='kurashi'&&selectedPayment==='site_kobarai'&&total>=40000){
+    warning.classList.add('show');
+  } else {
+    warning.classList.remove('show');
+  }
 }
 
 function storeLogout(){
@@ -835,7 +903,13 @@ function onPlatformChange(){
   if(isCounterCard){ osoujiCount=Math.min(osoujiCount,normalCount); }
   syncCounterDisplays();
   document.getElementById('parkingCard').style.display = platform==='kurashi' ? 'block' : 'none';
-  if(platform!=='kurashi') document.getElementById('parkingFee').value='';
+  document.getElementById('paymentCard').style.display = platform==='kurashi' ? 'block' : 'none';
+  if(platform!=='kurashi'){
+    document.getElementById('parkingFee').value='';
+    selectedPayment='';
+    document.querySelectorAll('.payment-option').forEach(el=>el.classList.remove('selected'));
+    const w=document.getElementById('kobaraiWarning');if(w)w.classList.remove('show');
+  }
   applyOptPricesForMedium(platform);
   updateHints();calc();
 }
@@ -989,6 +1063,8 @@ function calc(){
   } else {
     wsArea.style.display='none';
   }
+  // 後払い警告チェック
+  checkKobaraiWarning();
 }
 
 // ===== リセット =====
@@ -1008,6 +1084,10 @@ function resetAll(){
   document.getElementById('ymCard').style.display='block';
   document.getElementById('parkingFee').value='';
   document.getElementById('parkingCard').style.display='none';
+  document.getElementById('paymentCard').style.display='none';
+  selectedPayment='';
+  document.querySelectorAll('.payment-option').forEach(el=>el.classList.remove('selected'));
+  const kw=document.getElementById('kobaraiWarning');if(kw)kw.classList.remove('show');
   document.getElementById('freeOsouji').value='';
   document.getElementById('ymCoupon').value='flat:0';
   document.getElementById('ymKobarai').value='0';
