@@ -283,8 +283,8 @@
     <div class="card">
       <div class="card-title">媒体・受注先</div>
       <select id="platform" onchange="onPlatformChange()">
+        <option value="kurashi" selected>くらしのマーケット</option>
         <option value="yourmeister">ユアマイスター</option>
-        <option value="kurashi">くらしのマーケット</option>
         <option value="ouchi">おうちにプロ</option>
         <option value="jisha">自社（直接・HPやLINE等）</option>
         <option value="chirashi">チラシ</option>
@@ -479,6 +479,10 @@
         <div style="font-size:24px;font-weight:900;letter-spacing:-0.5px;" id="workSubtotalAmount">¥0<small style="font-size:14px;margin-left:3px;">円</small></div>
       </div>
       <div class="total-breakdown" id="breakdown"></div>
+      <button onclick="copyResult()" id="copyBtn" style="margin-top:14px;width:100%;padding:12px;border-radius:var(--radius-sm);border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .15s;">
+        📋 施工内容をコピー
+      </button>
+      <div id="copyMsg" style="text-align:center;font-size:12px;color:rgba(255,255,255,.9);margin-top:6px;display:none;">✅ コピーしました！</div>
     </div>
 
     <button class="reset-btn" onclick="resetAll()">🔄 リセット</button>
@@ -1164,15 +1168,65 @@ function saveCustomOptions(){
   saveCustomOptsDB(opts);showSaved('savedMsgCustom');renderOptions();calc();
 }
 
+function copyResult(){
+  const breakdown=document.getElementById('breakdown');
+  const totalEl=document.getElementById('totalAmount');
+  const wsArea=document.getElementById('workSubtotalArea');
+  const wsLabel=document.getElementById('workSubtotalLabel');
+  const wsAmount=document.getElementById('workSubtotalAmount');
+
+  let lines=['【本日の施工内容】'];
+
+  // 内訳行を取得
+  breakdown.querySelectorAll('.bd-row').forEach(row=>{
+    const spans=row.querySelectorAll('span');
+    if(spans.length===2){
+      const label=spans[0].textContent.trim()
+        .replace(/（¥[\d,]+\/台）/g,'')
+        .replace(/\s+/g,' ').trim();
+      const amount=spans[1].textContent.trim().replace(/¥/g,'').replace(/円/g,'');
+      if(label==='合計') return;
+      if(label.startsWith('作業料金小計')) return;
+      lines.push(`${label}：${amount}-`);
+    }
+  });
+
+  lines.push('─────────────');
+  const totalText = totalEl.textContent.replace(/円/g,'').replace(/¥/g,'').trim();
+  lines.push(`合計：${totalText}-`);
+
+  // 売上登録金額があれば追加
+  if(wsArea.style.display!=='none'){
+    lines.push(`${wsLabel.textContent}：${wsAmount.textContent.trim()}`);
+  }
+
+  const text=lines.join('\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    const msg=document.getElementById('copyMsg');
+    msg.style.display='block';
+    setTimeout(()=>msg.style.display='none',2000);
+  }).catch(()=>{
+    // フォールバック
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    const msg=document.getElementById('copyMsg');
+    msg.style.display='block';
+    setTimeout(()=>msg.style.display='none',2000);
+  });
+}
+
 function showSaved(id){const el=document.getElementById(id);el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
 
 // ===== 初期化 =====
 loadStoreList();
 document.getElementById('orderDate').value=getTodayStr();
 onDateChange();
-document.getElementById('counterCard').style.display='none';
-document.getElementById('counterCardYM').style.display='block';
-document.getElementById('ymCard').style.display='block';
+document.getElementById('counterCard').style.display='block';
+document.getElementById('counterCardYM').style.display='none';
+document.getElementById('ymCard').style.display='none';
+document.getElementById('parkingCard').style.display='block';
+document.getElementById('paymentCard').style.display='block';
 renderOptions();
 calc();
 </script>
