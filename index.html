@@ -632,7 +632,7 @@ function checkKobaraiWarning(){
   const platform=document.getElementById('platform').value;
   const totalEl=document.getElementById('totalAmount');
   const total=parseInt((totalEl.textContent||'').replace(/[^0-9]/g,''))||0;
-  if(platform==='kurashi'&&selectedPayment==='site_kobarai'&&total>=40000){
+  if(platform==='kurashi'&&selectedPayment==='site_kobarai'&&total>=60000){
     warning.classList.add('show');
   } else {
     warning.classList.remove('show');
